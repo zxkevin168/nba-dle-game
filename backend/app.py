@@ -31,18 +31,25 @@ def get_daily_player():
             'date': str(date.today()),
             'id': chosen_player['id'],
             'full_name': chosen_player['full_name'],
+            'first_name': chosen_player['first_name'],
+            'last_name': chosen_player['last_name'],
+            'clues': chosen_player # Store the entire player object for future clues
             # For now, we won't serve the full name, just the ID
         }
         print(f"Daily player selected: {daily_player['full_name']}")
-    return daily_player['id']
+    return daily_player
 
 # This is our first endpoint
 @app.route('/api/daily-player', methods=['GET'])
 def get_daily_player_endpoint():
     # This endpoint will get the daily player's ID and serve it to the frontend.
     # The frontend will use this ID to make a guess.
-    player_id = get_daily_player()
-    return jsonify({'message': 'daily player selected'})
+    player_details = get_daily_player()
+    clues = {
+        'first_name_initial': player_details['first_name'][0].upper(),
+        'last_name_initial': player_details['last_name'][0].upper()
+    }
+    return jsonify(clues)
 
 # This is our second endpoint
 @app.route('/api/check-guess', methods=['POST'])
@@ -52,10 +59,10 @@ def check_guess():
     user_guess = data.get('guess', '').lower()
 
     # Get the actual daily player's full name from our data source using the ID
-    daily_player_id = get_daily_player()
-    correct_player = next((p for p in all_players if p['id'] == daily_player_id), None)
+    daily_player_details = get_daily_player()
+    correct_player_name = daily_player_details['full_name'].lower()
 
-    if correct_player and user_guess == correct_player['full_name'].lower():
+    if user_guess == correct_player_name:
         return jsonify({'correct': True, 'message': 'You got it!'})
     else:
         return jsonify({'correct': False, 'message': 'Try again!'})
