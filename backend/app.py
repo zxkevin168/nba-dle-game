@@ -1,6 +1,7 @@
 # app.py
 import json
 import random
+import os
 from datetime import date
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -10,8 +11,16 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Load player data once when the application starts
-with open('nba_players_list.json', 'r') as f:
-    all_players = json.load(f)
+try:
+    # Use app.root_path to get a reliable path to the file,
+    # regardless of where the script is executed from.
+    player_data_path = os.path.join(app.root_path, 'nba_players_list.json')
+    with open(player_data_path, 'r') as f:
+        all_players = json.load(f)
+except FileNotFoundError:
+    print(f"Error: The file {player_data_path} was not found.")
+    print("Please ensure 'nba_players_list.json' is in the same directory as app.py.")
+    all_players = []
 
 # Simple dictionary to store the daily player info
 daily_player = {}
@@ -69,74 +78,87 @@ def get_daily_player_endpoint():
     player_details = get_daily_player()
     return jsonify(player_details['clues'])
 
+@app.route('/api/players', methods=['GET'])
+def get_players():
+    """Returns a list of all active NBA players for the autocomplete feature."""
+    active_players = [p for p in all_players if p['is_active']]
+    return jsonify([{'full_name': p['full_name'], 'id': p['id']} for p in active_players])
+
 @app.route('/api/check-guess', methods=['POST'])
 def check_guess():
     data = request.json
     user_guess_name = data.get('guess', '').lower()
 
+    # Get the correct daily player from the global cache
     daily_player_details = get_daily_player()
     correct_player_name = daily_player_details['full_name'].lower()
-    correct_player_clues = daily_player_details['clues']
-
-    # Find the guessed player's details from the full player list
-    guessed_player_data = next((p for p in all_players if p['full_name'].lower() == user_guess_name), None)
-
-    if not guessed_player_data:
+    
+    # Check if the user's guess is the correct player
+    if user_guess_name == correct_player_name:
         return jsonify({
-            'correct': False,
-            'message': 'Invalid player name. Please select from the dropdown.'
+            'correct': True,
+            'message': 'You got it!',
+            'feedback': {
+                'guessed_player_name': daily_player_details['full_name'],
+            }
         })
 
-    # Get detailed info for the guessed player using the NBA API
-    guessed_player_info = commonplayerinfo.CommonPlayerInfo(player_id=guessed_player_data['id'])
-    player_data = guessed_player_info.common_player_info.get_dict()
-    headers = player_data['headers']
-    data = player_data['data'][0]
+    # Find the guessed player from the list
+    guessed_player = next((p for p in all_players if p['full_name'].lower() == user_guess_name), None)
 
-    team_name_index = headers.index('TEAM_NAME')
-    position_index = headers.index('POSITION')
-    jersey_index = headers.index('JERSEY')
+    if not guessed_player:
+        return jsonify({
+            'correct': False,
+            'message': 'Player not found.',
+            'feedback': {}
+        })
 
-    guessed_team = data[team_name_index]
-    guessed_position = data[position_index]
-    guessed_jersey = data[jersey_index]
+    # Fetch detailed info for the guessed player
+    guessed_player_info = commonplayerinfo.CommonPlayerInfo(player_id=guessed_player['id'])
+    guessed_player_data = guessed_player_info.common_player_info.get_dict()
     
-    # Compare with the correct player's clues
-    is_correct = user_guess_name == correct_player_name
+    headers = guessed_player_data['headers']
+    data = guessed_player_data['data'][0]
+    
+    # Extract data using the found indices
+    guessed_team_name = data[headers.index('TEAM_NAME')]
+    guessed_position = data[headers.index('POSITION')]
+    guessed_jersey = data[headers.index('JERSEY')]
+    
+    # Get correct player info for comparison
+    correct_team_name = daily_player_details['clues']['team_name']
+    correct_position = daily_player_details['clues']['position']
+    correct_jersey = daily_player_details['clues']['jersey']
 
-    feedback = {
-        'correct': is_correct,
-        'guessed_player_name': guessed_player_data['full_name'],
-        'guessed_player_clues': {
-            'team': guessed_team,
-            'position': guessed_position,
-            'jersey': guessed_jersey
-        },
-        'clue_feedback': {
-            'team_correct': guessed_team == correct_player_clues['team_name'],
-            'position_correct': guessed_position == correct_player_clues['position'],
-            'jersey_correct': guessed_jersey == correct_player_clues['jersey'],
-            'jersey_hint': ''
+    # Compare attributes and build feedback
+    team_match = guessed_team_name.lower() == correct_team_name.lower()
+    position_match = guessed_position.lower() == correct_position.lower()
+    jersey_match = guessed_jersey == correct_jersey
+    
+    jersey_hint = None
+    try:
+        if not jersey_match:
+            if int(guessed_jersey) > int(correct_jersey):
+                jersey_hint = 'down'
+            else:
+                jersey_hint = 'up'
+    except (ValueError, TypeError):
+        jersey_hint = None # If jersey numbers are not integers, no hint is given
+    
+    return jsonify({
+        'correct': False,
+        'message': 'Try again!',
+        'feedback': {
+            'team_match': team_match,
+            'position_match': position_match,
+            'jersey_match': jersey_match,
+            'guessed_player_name': guessed_player['full_name'],
+            'guessed_team': guessed_team_name,
+            'guessed_position': guessed_position,
+            'guessed_jersey': guessed_jersey,
+            'jersey_hint': jersey_hint
         }
-    }
-    
-    if not is_correct:
-        try:
-            # Provide a hint if the jersey numbers are comparable
-            if int(guessed_jersey) > int(correct_player_clues['jersey']):
-                feedback['clue_feedback']['jersey_hint'] = 'down'
-            elif int(guessed_jersey) < int(correct_player_clues['jersey']):
-                feedback['clue_feedback']['jersey_hint'] = 'up'
-        except (ValueError, TypeError):
-            # Handle cases where jersey number is not a valid integer
-            feedback['clue_feedback']['jersey_hint'] = ''
-
-    if is_correct:
-        feedback['message'] = 'You got it!'
-    else:
-        feedback['message'] = 'Try again!'
-
-    return jsonify(feedback)
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
