@@ -1,47 +1,81 @@
-# NBA-dle Game Backend
+NBA-dle: The Daily NBA Player Guessing Game
+===========================================
 
-This is the backend API for a daily NBA player guessing game, similar to LoLdle. It is built with Python and the Flask framework.
+**NBA-dle** is a full-stack web application where players try to guess the daily mystery NBA player. The game's frontend, built with React, communicates with a Python-based backend that provides player data and validates guesses.
 
-## Features
+Features
+--------
 
-* **Daily Player Selection:** Automatically selects a random active NBA player once per day.
+-   **Interactive Clues:** After each guess, receive feedback on the player's team, position, and jersey number.
 
-* **Clue Generation:** Provides clues for the daily player (Team, Position, Jersey Number) without revealing their name.
+-   **Intuitive Feedback:** A green box indicates a correct match, while a red box means the information is incorrect. For jersey numbers, you'll also get an up or down arrow hint to guide your next guess.
 
-* **Guess Validation:** Compares a user's guess against the correct player and provides detailed feedback on a per-clue basis.
+-   **Player Autocomplete:** An intelligent search feature that provides real-time player name suggestions as you type.
 
-## Setup and Installation
+-   **Winning & Losing States:** The game correctly identifies when you have won or run out of guesses, and provides a "Play Again" option.
 
-### 1. Prerequisites
+Technologies
+------------
 
-Make sure you have Python 3.8 or higher installed.
+-   **Frontend:** React, Vite, Tailwind CSS
 
-### 2. Clone the Repository
+-   **Backend:** Flask, Flask-CORS, `nba-api` Python library
 
-git clone
+Getting Started
+---------------
 
-cd nba-game/backend
+To run the complete application, you must start both the backend and the frontend.
 
-### 3. Install Dependencies
+### Running the Backend
 
-Use the `requirements.txt` file to install all necessary Python packages. It is recommended to do this in a virtual environment.
+1.  Make sure you have Python 3 and `pip` installed.
 
-pip install -r requirements.txt
+2.  Navigate to your backend directory in the terminal.
 
-### 4. Get Player Data
+3.  (Optional but Recommended) Create and activate a virtual environment:
 
-The backend relies on a local JSON file for a list of all NBA players. You will need to create this file by running a script to fetch the data from a public NBA API. For this project, we used the `nba_api` library.
+    ```
+    python3 -m venv venv
+    source venv/bin/activate
 
-### 5. Run the Backend
+    ```
 
-Start the Flask development server.
+4.  Install the required Python packages:
 
-flask run
+    ```
+    pip install -r requirements.txt
 
-The server will run on `http://127.0.0.1:5000` by default.
+    ```
 
-## API Endpoints
+5.  Start the Flask server:
 
-* **`GET /api/daily-player`**: Returns the clues (Team, Position, Jersey Number) for the daily player.
+    ```
+    flask run
 
-* **`POST /api/check-guess`**: Accepts a player name as a JSON body (`{"guess": "Player Name"}`) and returns feedback on the guess.
+    ```
+
+    The backend will now be running and listening for requests.
+
+### Running the Frontend
+
+1.  Make sure you have Node.js and npm installed.
+
+2.  Navigate to your frontend directory in a separate terminal window.
+
+3.  Install the required npm packages:
+
+    ```
+    npm install
+
+    ```
+
+4.  Start the development server:
+
+    ```
+    npm run dev
+
+    ```
+
+5.  Open your web browser and navigate to the URL provided in the terminal (usually `http://localhost:5173`).
+
+Enjoy the game!
