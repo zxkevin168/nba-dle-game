@@ -83,12 +83,73 @@ class NBA_dle_Tests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(data['correct'])
         self.assertEqual(data['message'], 'You got it!')
-        self.assertDictEqual(data['clue_feedback'], {
-            'team_correct': True,
-            'position_correct': True,
-            'jersey_correct': True,
-            'jersey_hint': ''
+        self.assertDictEqual(data['feedback'], {
+            'guessed_player_name': 'Luka Doncic',
         })
+
+    @patch('app.all_players', new=[{'id': 1628991, 'full_name': 'Luka Doncic', 'is_active': True}])
+    def test_get_players_endpoint(self):
+        """
+        Test the /api/players endpoint returns all active players.
+        """
+        response = self.app.get('/api/players')
+        data = json.loads(response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(data, list)
+        self.assertEqual(data[0]['full_name'], 'Luka Doncic')
+        self.assertEqual(data[0]['id'], 1628991)
+
+    @patch('app.get_daily_player')
+    @patch('app.all_players', new=[{'id': 1628991, 'full_name': 'Luka Doncic', 'is_active': True}])
+    def test_check_guess_player_not_found(self, mock_get_daily_player):
+        """
+        Test /api/check-guess with a player not in the list.
+        """
+        mock_get_daily_player.return_value = {
+            'date': str(date.today()),
+            'id': 1628991,
+            'full_name': 'Luka Doncic',
+            'clues': {
+                'team_city': 'Dallas',
+                'team_name': 'Mavericks',
+                'position': 'Guard-Forward',
+                'jersey': '77'
+            }
+        }
+        response = self.app.post('/api/check-guess',
+                                 data=json.dumps({'guess': 'Nonexistent Player'}),
+                                 content_type='application/json')
+        data = json.loads(response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(data['correct'])
+        self.assertEqual(data['message'], 'Player not found.')
+        self.assertEqual(data['feedback'], {})
+
+    @patch('app.get_daily_player')
+    @patch('app.all_players', new=[{'id': 1628991, 'full_name': 'Luka Doncic', 'is_active': True}])
+    def test_check_guess_malformed(self, mock_get_daily_player):
+        """
+        Test /api/check-guess with missing guess field.
+        """
+        mock_get_daily_player.return_value = {
+            'date': str(date.today()),
+            'id': 1628991,
+            'full_name': 'Luka Doncic',
+            'clues': {
+                'team_city': 'Dallas',
+                'team_name': 'Mavericks',
+                'position': 'Guard-Forward',
+                'jersey': '77'
+            }
+        }
+        response = self.app.post('/api/check-guess',
+                                 data=json.dumps({}),
+                                 content_type='application/json')
+        data = json.loads(response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(data['correct'])
+        self.assertEqual(data['message'], 'Player not found.')
+        self.assertEqual(data['feedback'], {})
 
     @patch('app.get_daily_player')
     @patch('app.commonplayerinfo.CommonPlayerInfo')
@@ -128,13 +189,14 @@ class NBA_dle_Tests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(data['correct'])
         self.assertEqual(data['message'], 'Try again!')
-        self.assertEqual(data['guessed_player_name'], 'Stephen Curry')
-        self.assertDictEqual(data['clue_feedback'], {
-            'team_correct': False,
-            'position_correct': False,
-            'jersey_correct': False,
-            'jersey_hint': 'up'
-        })
+        self.assertEqual(data['feedback']['guessed_player_name'], 'Stephen Curry')
+        self.assertEqual(data['feedback']['guessed_team'], 'Warriors')
+        self.assertEqual(data['feedback']['guessed_position'], 'Guard')
+        self.assertEqual(data['feedback']['guessed_jersey'], '30')
+        self.assertEqual(data['feedback']['team_match'], False)
+        self.assertEqual(data['feedback']['position_match'], False)
+        self.assertEqual(data['feedback']['jersey_match'], False)
+        self.assertEqual(data['feedback']['jersey_hint'], 'up')
 
 if __name__ == '__main__':
     unittest.main()
