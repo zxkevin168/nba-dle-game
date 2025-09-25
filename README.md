@@ -3,6 +3,8 @@ NBA-dle: The Daily NBA Player Guessing Game
 
 **NBA-dle** is a full-stack web application where players try to guess the daily mystery NBA player. The game's frontend, built with React, communicates with a Python-based backend that provides player data and validates guesses.
 
+![til](./demo.gif)
+
 Features
 --------
 
