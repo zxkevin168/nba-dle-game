@@ -8,9 +8,6 @@ def get_all_nba_players_data():
     # Get all players (active and inactive)
     nba_players = players.get_players()
 
-    # You might want to filter or process this data further
-    # For NBA-dle, we'll need name, ID, and potentially team info.
-    # Let's simplify and just save the core player info for now.
     player_list = []
     for player in nba_players:
         player_list.append({

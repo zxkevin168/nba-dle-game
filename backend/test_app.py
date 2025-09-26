@@ -79,7 +79,6 @@ class NBA_dle_Tests(unittest.TestCase):
                                  content_type='application/json')
         data = json.loads(response.data)
         
-        # Assertions based on the latest app.py response format
         self.assertEqual(response.status_code, 200)
         self.assertTrue(data['correct'])
         self.assertEqual(data['message'], 'You got it!')
@@ -92,6 +91,7 @@ class NBA_dle_Tests(unittest.TestCase):
         """
         Test the /api/players endpoint returns all active players.
         """
+        # Make a GET request to the endpoint
         response = self.app.get('/api/players')
         data = json.loads(response.data)
         self.assertEqual(response.status_code, 200)
@@ -105,6 +105,7 @@ class NBA_dle_Tests(unittest.TestCase):
         """
         Test /api/check-guess with a player not in the list.
         """
+        # Mock the get_daily_player function to control the correct answer
         mock_get_daily_player.return_value = {
             'date': str(date.today()),
             'id': 1628991,
@@ -116,6 +117,7 @@ class NBA_dle_Tests(unittest.TestCase):
                 'jersey': '77'
             }
         }
+        # Make a POST request with a non-existing guess
         response = self.app.post('/api/check-guess',
                                  data=json.dumps({'guess': 'Nonexistent Player'}),
                                  content_type='application/json')
@@ -131,6 +133,7 @@ class NBA_dle_Tests(unittest.TestCase):
         """
         Test /api/check-guess with missing guess field.
         """
+        # Mock the get_daily_player function to control the correct answer
         mock_get_daily_player.return_value = {
             'date': str(date.today()),
             'id': 1628991,
@@ -142,6 +145,7 @@ class NBA_dle_Tests(unittest.TestCase):
                 'jersey': '77'
             }
         }
+        # Make a POST request with a null guess
         response = self.app.post('/api/check-guess',
                                  data=json.dumps({}),
                                  content_type='application/json')
