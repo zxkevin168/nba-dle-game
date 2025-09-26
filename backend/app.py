@@ -6,21 +6,19 @@ from datetime import date
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from nba_api.stats.endpoints import commonplayerinfo
+import boto3
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Load player data once when the application starts
-try:
-    # Use app.root_path to get a reliable path to the file,
-    # regardless of where the script is executed from.
-    player_data_path = os.path.join(app.root_path, 'nba_players_list.json')
-    with open(player_data_path, 'r') as f:
-        all_players = json.load(f)
-except FileNotFoundError:
-    print(f"Error: The file {player_data_path} was not found.")
-    print("Please ensure 'nba_players_list.json' is in the same directory as app.py.")
-    all_players = []
+def get_all_players():
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('NBAPlayers')
+    response = table.scan(
+        FilterExpression='is_active = :active',
+        ExpressionAttributeValues={':active': True}
+    )
+    return response['Items']
 
 # Simple dictionary to store the daily player info
 daily_player = {}
@@ -32,7 +30,7 @@ def get_daily_player():
     """
     global daily_player
     if 'date' not in daily_player or daily_player['date'] != str(date.today()):
-        active_players = [p for p in all_players if p['is_active']]
+        active_players = get_all_players()
         chosen_player = random.choice(active_players)
         
         # Use nba_api to get more detailed player info
@@ -81,7 +79,7 @@ def get_daily_player_endpoint():
 @app.route('/api/players', methods=['GET'])
 def get_players():
     """Returns a list of all active NBA players for the autocomplete feature."""
-    active_players = [p for p in all_players if p['is_active']]
+    active_players = get_all_players()
     return jsonify([{'full_name': p['full_name'], 'id': p['id']} for p in active_players])
 
 @app.route('/api/check-guess', methods=['POST'])
@@ -104,7 +102,15 @@ def check_guess():
         })
 
     # Find the guessed player from the list
-    guessed_player = next((p for p in all_players if p['full_name'].lower() == user_guess_name), None)
+    # Query DynamoDB for guessed player
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('NBAPlayers')
+    response = table.scan(
+        FilterExpression='full_name = :name',
+        ExpressionAttributeValues={':name': data.get('guess', '')}
+    )
+    guessed_players = response['Items']
+    guessed_player = guessed_players[0] if guessed_players else None
 
     if not guessed_player:
         return jsonify({
