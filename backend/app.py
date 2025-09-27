@@ -28,16 +28,6 @@ def fetch_common_player_info(player_id, max_attempts=3, timeout=60):
 
     Returns the dictionary from common_player_info.get_dict() on success, or None on failure.
     """
-    # If NBA_API_PROXY is set, temporarily set system proxy env vars so requests (used by nba_api)
-    # will go through the proxy. This supports http(s) proxies or socks proxies (socks5h://...)
-    proxy_env = os.environ.get('NBA_API_PROXY')
-    prev_http = os.environ.get('HTTP_PROXY')
-    prev_https = os.environ.get('HTTPS_PROXY')
-
-    if proxy_env:
-        os.environ['HTTP_PROXY'] = proxy_env
-        os.environ['HTTPS_PROXY'] = proxy_env
-
     for attempt in range(1, max_attempts + 1):
         try:
             info = commonplayerinfo.CommonPlayerInfo(player_id=player_id, timeout=timeout)
@@ -51,17 +41,6 @@ def fetch_common_player_info(player_id, max_attempts=3, timeout=60):
             print(f"Error fetching player {player_id} from NBA API: {e} (attempt {attempt}/{max_attempts})")
             if attempt < max_attempts:
                 time.sleep(1)
-    # Restore previous proxy env vars
-    if proxy_env:
-        if prev_http is None:
-            os.environ.pop('HTTP_PROXY', None)
-        else:
-            os.environ['HTTP_PROXY'] = prev_http
-
-        if prev_https is None:
-            os.environ.pop('HTTPS_PROXY', None)
-        else:
-            os.environ['HTTPS_PROXY'] = prev_https
 
     return None
 
